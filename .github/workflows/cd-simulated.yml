@@ -1,0 +1,38 @@
+name: CD – Simulated Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - "demo/**"
+
+jobs:
+  deploy-simulated:
+    name: Build, Run and Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t devops25-cicd-demo:${{ github.sha }} .
+
+      - name: Start container
+        run: docker run -d --name devops25-container -p 8000:8000 devops25-cicd-demo:${{ github.sha }}
+
+      - name: Wait for startup
+        run: sleep 3
+
+      - name: Verify health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
+          echo "Health check returned: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Verification FAILED"
+            exit 1
+          fi
+          echo "Verification PASSED"
+
+      - name: Stop container
+        if: always()
+        run: docker stop devops25-container
